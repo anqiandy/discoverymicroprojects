@@ -1,5 +1,10 @@
 {
   "allOrNothing": true,
+  "microProject": {
+    "title": "MicroProject #4: United States Congress",
+    "image": "https://waf-server-01.cs.illinois.edu/static/up-cards/03/regular.svg",
+    "link": "https://mastery.cs.illinois.edu/platform/cards/"
+  },
   "tests": [
     {
       "name": "Part 1: Importing the legislators-current dataset",
