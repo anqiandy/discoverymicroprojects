@@ -1,5 +1,10 @@
 {
   "allOrNothing": true,
+  "microProject": {
+    "title": "MicroProject #5: Bechdel Test",
+    "image": "https://waf-server-01.cs.illinois.edu/static/up-cards/05/regular.svg",
+    "link": "https://mastery.cs.illinois.edu/platform/cards/"
+  },
   "tests": [
     {
       "name": "Part 1: Importing the Bechdel Test Dataset",
