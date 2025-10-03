@@ -1,5 +1,10 @@
 {
   "allOrNothing": true,
+  "microProject": {
+    "title": "MicroProject #6: Infinite Money in Roulette (Martingale Betting Strategy)",
+    "image": "https://waf-server-01.cs.illinois.edu/static/up-cards/06/regular.svg",
+    "link": "https://mastery.cs.illinois.edu/platform/cards/"
+  },
   "tests": [
     {
       "name": "Part 1.1: Simulating the `number` in Roulette Game",
