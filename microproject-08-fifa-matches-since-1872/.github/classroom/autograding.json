@@ -1,9 +1,9 @@
 {
   "allOrNothing": true,
   "microProject": {
-    "title": "MicroProject #8: FIFA Matches since 1872",
+    "title": "MicroProject #8: FIFA Matches Since 1872",
     "image": "https://waf-server-01.cs.illinois.edu/static/up-cards/08/regular.svg",
-    "link": "https://mastery.cs.illinois.edu/platform/microprojects/"
+    "link": "https://mastery.cs.illinois.edu/platform/cards/"
   },
   "tests": [
     {
