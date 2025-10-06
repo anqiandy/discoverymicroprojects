@@ -1,5 +1,10 @@
 {
   "allOrNothing": true,
+  "microProject": {
+    "title": "MicroProject #7: Choropleth Maps",
+    "image": "https://waf-server-01.cs.illinois.edu/static/up-cards/07/regular.svg",
+    "link": "https://mastery.cs.illinois.edu/platform/cards/"
+  },
   "tests": [
     {
       "name": "Part 2.1: Create a DataFrame of Illinois Students by State",
