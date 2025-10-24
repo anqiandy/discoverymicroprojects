@@ -3,9 +3,26 @@ from PIL import Image
 
 def df_image(fileName):
   data = loadImage(fileName)
-  return createImageDataFrame(data)
+  return createImageDataFrame(data, fileName)
+
+
+loadedHEIF = False
+def enableHEIF():
+  from pillow_heif import register_heif_opener
+  register_heif_opener()
+
 
 def loadImage(fileName, resize=False, format="RGB"):
+  global loadedHEIF
+  
+  # Detect an enable support for HEIF if needed
+  if ".HEIC" in fileName.upper() and not loadedHEIF:
+    try:
+      enableHEIF()
+      loadedHEIF = True
+    except:
+      raise ImportError("Failed to load support for HEIF/HEIC files.  Install the following library to enable HEIF support:\n  python3 -m pip install pillow-heif")  
+
   # Open the image using the PIL library
   image = Image.open(fileName)
 
@@ -24,56 +41,37 @@ def squareAndResizeImage(image, resize):
   return image
 
 
-# https://stackoverflow.com/questions/13405956/convert-an-image-rgb-lab-with-python
 def rgb2lab(inputColor):
-  num = 0
-  RGB = [0, 0, 0]
+  # Convert RGB [0,255] to [0,1]
+  r, g, b = [x / 255.0 for x in inputColor]
 
-  for value in inputColor:
-    value = float(value) / 255
+  # Apply sRGB companding
+  def compand(c):
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
-    if value > 0.04045:
-      value = ( ( value + 0.055 ) / 1.055 ) ** 2.4
-    else :
-      value = value / 12.92
+  r, g, b = compand(r), compand(g), compand(b)
 
-    RGB[num] = value * 100
-    num = num + 1
+  # Convert to XYZ
+  X = r * 0.4124 + g * 0.3576 + b * 0.1805
+  Y = r * 0.2126 + g * 0.7152 + b * 0.0722
+  Z = r * 0.0193 + g * 0.1192 + b * 0.9505
 
-  XYZ = [0, 0, 0]
+  # Normalize for D65 white point
+  X /= 0.95047
+  Y /= 1.00000
+  Z /= 1.08883
 
-  X = RGB [0] * 0.4124 + RGB [1] * 0.3576 + RGB [2] * 0.1805
-  Y = RGB [0] * 0.2126 + RGB [1] * 0.7152 + RGB [2] * 0.0722
-  Z = RGB [0] * 0.0193 + RGB [1] * 0.1192 + RGB [2] * 0.9505
-  XYZ[ 0 ] = round( X, 4 )
-  XYZ[ 1 ] = round( Y, 4 )
-  XYZ[ 2 ] = round( Z, 4 )
+  # LAB conversion helper
+  def f(t):
+    return t ** (1/3) if t > 0.008856 else (7.787 * t) + (16 / 116)
 
-  XYZ[ 0 ] = float( XYZ[ 0 ] ) / 95.047         # ref_X =  95.047   Observer= 2°, Illuminant= D65
-  XYZ[ 1 ] = float( XYZ[ 1 ] ) / 100.0          # ref_Y = 100.000
-  XYZ[ 2 ] = float( XYZ[ 2 ] ) / 108.883        # ref_Z = 108.883
+  fx, fy, fz = f(X), f(Y), f(Z)
 
-  num = 0
-  for value in XYZ:
-    if value > 0.008856:
-      value = value ** ( 0.3333333333333333 )
-    else:
-      value = ( 7.787 * value ) + ( 16 / 116 )
+  L = (116 * fy) - 16
+  a = 500 * (fx - fy)
+  b = 200 * (fy - fz)
 
-    XYZ[num] = value
-    num = num + 1
-
-  Lab = [0, 0, 0]
-
-  L = ( 116 * XYZ[ 1 ] ) - 16
-  a = 500 * ( XYZ[ 0 ] - XYZ[ 1 ] )
-  b = 200 * ( XYZ[ 1 ] - XYZ[ 2 ] )
-
-  Lab [ 0 ] = round( L, 4 )
-  Lab [ 1 ] = round( a, 4 )
-  Lab [ 2 ] = round( b, 4 )
-
-  return Lab
+  return [L, a, b]
 
 
 # Convert (and resize) an Image to an Lab array
@@ -113,7 +111,7 @@ def getTileImage(fileName, size):
 
 
 def isImageFile(file):
-  for ext in [".jpg", ".jpeg", ".png"]:
+  for ext in [".jpg", ".jpeg", ".png", ".heic"]:
     if file.endswith(ext) or file.endswith(ext.upper()):
       return True
 
@@ -218,14 +216,14 @@ def run_test_case_4(findAverageColor):
   ]
   result = findAverageColor(pd.DataFrame(pixelData))
   
-  for colName in ['avg_r', 'avg_g', 'avg_b']:
+  for colName in ['r_avg', 'g_avg', 'b_avg']:
     if colName not in result:
       print(f"\N{CROSS MARK} Dictionary must contain the key `{colName}`.")
       return
     else:
       print(f"\u2705 Dictionary contain the key `{colName}`.")
 
-  if result["avg_r"] == 1 and result["avg_g"] == 2 and result["avg_b"] == 3:
+  if result["r_avg"] == 1 and result["g_avg"] == 2 and result["b_avg"] == 3:
     print("\u2705 The values all appear correct!")
     print(f"{tada} All tests passed! {tada}")
   else:
@@ -256,37 +254,37 @@ def run_test_case_5(findImageSubset):
   def TEST_findImageSubset(f, x, y, w, h, expected):
     result = f(pixelData, x, y, w, h)
     if len(result) != w * h:
-      print(f"\N{CROSS MARK} findImageSubset(image, x={x}, y={y}, width={w}, height={h}) must have {w * h} pixels.")
+      print(f"\N{CROSS MARK} findImageSubset(image, x0={x}, y0={y}, width={w}, height={h}) must have {w * h} pixels.")
       print("== Your DataFrame ==")
       print(result)
       return False
 
     if len(result[ result.x < x ]) != 0:
-      print(f"\N{CROSS MARK} findImageSubset(image, x={x}, y={y}, width={w}, height={h}) must have no pixels less than x={x}.")
+      print(f"\N{CROSS MARK} findImageSubset(image, x0={x}, y0={y}, width={w}, height={h}) must have no pixels less than x={x}.")
       print("== Your DataFrame ==")
       print(result)
       return False
 
     if len(result[ result.x >= x + w ]) != 0:
-      print(f"\N{CROSS MARK} findImageSubset(image, x={x}, y={y}, width={w}, height={h}) must have no pixels greater than or equal to x={x + w}.")
+      print(f"\N{CROSS MARK} findImageSubset(image, x0={x}, y0={y}, width={w}, height={h}) must have no pixels greater than or equal to x={x + w}.")
       print("== Your DataFrame ==")
       print(result)
       return False
 
     if len(result[ result.y < y ]) != 0:
-      print(f"\N{CROSS MARK} findImageSubset(image, x={x}, y={y}, width={w}, height={h}) must have no pixels less than y={y}.")
+      print(f"\N{CROSS MARK} findImageSubset(image, x0={x}, y0={y}, width={w}, height={h}) must have no pixels less than y={y}.")
       print("== Your DataFrame ==")
       print(result)
       return False
 
     if len(result[ result.y >= y + h ]) != 0:
-      print(f"\N{CROSS MARK} findImageSubset(image, x={x}, y={y}, width={w}, height={h}) must have no pixels greater than or equal to y={y + h}.")
+      print(f"\N{CROSS MARK} findImageSubset(image, x0={x}, y0={y}, width={w}, height={h}) must have no pixels greater than or equal to y={y + h}.")
       print("== Your DataFrame ==")
       print(result)
       return False
     
 
-    print(f"\u2705 Test case for findImageSubset(image, x={x}, y={y}, width={w}, height={h}) appears correct.")
+    print(f"\u2705 Test case for findImageSubset(image, x0={x}, y0={y}, width={w}, height={h}) appears correct.")
     return True
 
   r = TEST_findImageSubset(findImageSubset, 0, 0, 2, 2, [0, 0, 0])
@@ -337,18 +335,18 @@ def run_test_case_6(findAverageImageSubsetColor):
   def TEST_findAverageImageSubsetColor(f, x, y, w, h, expected):
     result = f(pixelData, x, y, w, h)
 
-    if result["avg_r"] != expected[0] or result["avg_g"] != expected[1] or result["avg_b"] != expected[2]:
-      print(f"\N{CROSS MARK} Test case for findAverageImageSubsetColor(image, x={x}, y={y}, width={w}, height={h}) did not have the expected value.")
+    if result["r_avg"] != expected[0] or result["g_avg"] != expected[1] or result["b_avg"] != expected[2]:
+      print(f"\N{CROSS MARK} Test case for findAverageImageSubsetColor(image, x0={x}, y0={y}, width={w}, height={h}) did not have the expected value.")
       
-      r = result["avg_r"]
-      g = result["avg_g"]
-      b = result["avg_b"]
-      print(f"  Your Result: avg_r={r}, avg_g={g}, avg_b={b}")
+      r = result["r_avg"]
+      g = result["g_avg"]
+      b = result["b_avg"]
+      print(f"  Your Result: r_avg={r}, g_avg={g}, b_avg={b}")
 
       r = expected[0]
       g = expected[1]
       b = expected[2]
-      print(f"  Expected Result: avg_r={r}, avg_g={g}, avg_b={b}")
+      print(f"  Expected Result: r_avg={r}, g_avg={g}, b_avg={b}")
       return False
     else:
       print(f"\u2705 Test case for findAverageImageSubsetColor(image, x={x}, y={y}, width={w}, height={h}) appears correct.")
@@ -414,21 +412,7 @@ def run_test_case_8(findBestTile):
   except AssertionError as e:
     print(f"\N{CROSS MARK} {e}.")
 
-  
-
-
-# def createImageDataFrame(width, height):
-#   import random
-
-#   data = []
-#   for x in range(width):
-#     for y in range(height):
-#       data.append( {"x": x, "y": y, "r": random.randint(0, 255), "g": random.randint(0, 255), "b": random.randint(0, 255)} )
-  
-#   return pd.DataFrame(data)
-
-
-def createImageDataFrame(img):
+def createImageDataFrame(img, fileName = None):
   data = []
   width = len(img)
   height = len(img[0])
@@ -444,13 +428,3 @@ def createImageDataFrame(img):
       data.append(d)  
 
   return pd.DataFrame(data)
-
-
-def saveDataFrameAsImage(df, fileName):
-  width = max(df.x) + 1
-  height = max(df.y) + 1
-
-  image = Image.new('RGB', (width, height))
-  for index, row in df.iterrows():
-    image.paste( (row.r, row.g, row.b), (row.x, row.y, row.x + 1, row.y + 1) )
-  image.save(fileName)
